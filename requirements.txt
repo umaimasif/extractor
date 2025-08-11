@@ -1,0 +1,7 @@
+langchain
+pypdf
+pandas
+openai
+python-dotenv
+streamlit
+langchain-google-genai
