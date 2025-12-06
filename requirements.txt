@@ -2,5 +2,5 @@ streamlit
 pypdf
 pandas
 python-dotenv
-langchain==0.1.20
-langchain-google-genai==0.3.2
+langchain==0.0.328
+google-generativeai==0.3.2
