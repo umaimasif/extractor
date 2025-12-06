@@ -5,7 +5,8 @@ openai
 python-dotenv
 streamlit
 langchain-google-genai
-langchain
+langchain>=1.0.0
+
 
 
 
