@@ -1,5 +1,5 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.prompts.prompt import PromptTemplate  # updated import for v1.1.2
+from langchain_core.prompts import PromptTemplate# updated import for v1.1.2
 from pypdf import PdfReader
 import pandas as pd
 import re
@@ -48,3 +48,4 @@ def create_docs(user_pdf_list):
             df = pd.concat([df, pd.DataFrame([data_dict])], ignore_index=True)
 
     return df
+
