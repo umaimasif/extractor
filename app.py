@@ -6,7 +6,7 @@ import pandas as pd
 import re
 import ast
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.prompts.prompt import PromptTemplate
+from langchain.prompts import PromptTemplate
 import os
 from dotenv import find_dotenv, load_dotenv
 
@@ -122,4 +122,5 @@ def main():
 # Run the app
 if __name__ == "__main__":
     main()
+
 
