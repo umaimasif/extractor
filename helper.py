@@ -1,83 +1,57 @@
-from langchain_google_genai import ChatGoogleGenerativeAI 
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain.prompts import PromptTemplate  # updated for v1.1.2
 from pypdf import PdfReader
 import pandas as pd
 import re
-from langchain.prompts import PromptTemplate
-
-from langchain.agents.agent_types import AgentType
-
-
 import os
 from dotenv import find_dotenv, load_dotenv
+
+# Load environment variables
 load_dotenv(find_dotenv())
-google_key= os.getenv("GEMINI_API_KEY")
+google_key = os.getenv("GEMINI_API_KEY")
 
-
-
-# Extract Info rom PDF file
+# Extract text from PDF
 def get_pdf_text(pdf_doc):
-    text=""
+    text = ""
     pdf_reader = PdfReader(pdf_doc)
     for page in pdf_reader.pages:
         text += page.extract_text()
     return text
 
-# Extract data from text
+# Extract data using LLM
 def extracted_data(pages_data):
     template = """Extract all the following values : Invoice ID, DESCRIPTION, Issue Date, 
-         UNIT PRICE, AMOUNT, Bill For, From and Terms from: {pages}
+    UNIT PRICE, AMOUNT, Bill For, From and Terms from: {pages}
 
-        Expected output: remove any dollar symbols {{'Invoice ID': '1001329','DESCRIPTION': 'UNIT PRICE','AMOUNT': '2','Date': '5/4/2023','AMOUNT': '1100.00', 'Bill For': 'james', 'From': 'excel company', 'Terms': 'pay this now'}}
-        """
+    Expected output: remove any dollar symbols {{'Invoice ID': '1001329','DESCRIPTION': 'UNIT PRICE','AMOUNT': '2','Date': '5/4/2023','AMOUNT': '1100.00', 'Bill For': 'james', 'From': 'excel company', 'Terms': 'pay this now'}}"""
+    
     prompt_template = PromptTemplate(input_variables=["pages"], template=template)
-    llm = ChatGoogleGenerativeAI(temperature=.7)
-    full_response=llm(prompt_template.format(pages=pages_data))
+    llm = ChatGoogleGenerativeAI(temperature=0.7)
+    full_response = llm(prompt_template.format(pages=pages_data))
     
     return full_response
 
-# create documents from the uploaded pdfs
+# Create DataFrame from uploaded PDFs
 def create_docs(user_pdf_list):
-    df = pd.DataFrame({'Invoice ID': pd.Series(dtype='int'),
-                   'DESCRIPTION': pd.Series(dtype='str'),
-                   'Issue Date': pd.Series(dtype='str'),
-	              'UNIT PRICE': pd.Series(dtype='str'),
-                   'AMOUNT': pd.Series(dtype='int'),
-                   'Bill For': pd.Series(dtype='str'),
-	                'From': pd.Series(dtype='str'),
-                   'Terms': pd.Series(dtype='str')
-                    
-                    })
+    df = pd.DataFrame(columns=[
+        'Invoice ID', 'DESCRIPTION', 'Issue Date',
+        'UNIT PRICE', 'AMOUNT', 'Bill For', 'From', 'Terms'
+    ])
 
     for filename in user_pdf_list:
-        
-        print(filename)
-        raw_data=get_pdf_text(filename)
-        #print(raw_data)
-        #print("extracted raw data")
+        raw_data = get_pdf_text(filename)
+        llm_extracted_data = extracted_data(raw_data)
 
-        llm_extracted_data=extracted_data(raw_data)
-        #print("llm extracted data")
-        #Adding items to our list - Adding data & its metadata
-
-        pattern = r'{(.+)}' # capture one or more of any character, except newline
+        # Parse dictionary from LLM response
+        pattern = r'{(.+)}'
         match = re.search(pattern, llm_extracted_data, re.DOTALL)
-
         if match:
             extracted_text = match.group(1)
-            # Converting the extracted text to a dictionary
             data_dict = eval('{' + extracted_text + '}')
-            print(data_dict)
         else:
-            print("No match found.")
+            data_dict = {}
+        
+        if data_dict:
+            df = pd.concat([df, pd.DataFrame([data_dict])], ignore_index=True)
 
-     
-        # df=df.append([data_dict], ignore_index=True) #this won't work!!
-        df = pd.concat([df, pd.DataFrame([data_dict])], ignore_index=True)
-    
-        # df = pd.concat(df, pd.DataFrame([eval('{' +item+'}')]), ignore_index=True )
-
-        print("********************DONE***************")
-        #df=df.append(save_to_dataframe(llm_extracted_data), ignore_index=True)
-
-    df.head()
     return df
