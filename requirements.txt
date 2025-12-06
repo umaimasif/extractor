@@ -1,13 +1,10 @@
 
+streamlit>=1.25
 pypdf
 pandas
-openai
 python-dotenv
-streamlit
+langchain==0.0.328
 langchain-google-genai
-langchain>=1.0.0
-
-
 
 
 
