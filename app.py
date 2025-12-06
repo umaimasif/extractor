@@ -11,31 +11,43 @@ def main():
         type=["pdf"],
         accept_multiple_files=True
     )
+
     extract_button = st.button("Extract bill data...")
 
     if extract_button:
-        if pdf_files:
-            with st.spinner("Extracting... it takes time..."):
+        if not pdf_files:
+            st.warning("Please upload at least one PDF file.")
+            return
+
+        with st.spinner("Extracting... it may take some time..."):
+            try:
                 data_frame = create_docs(pdf_files)
+
+                if data_frame.empty:
+                    st.error("No data could be extracted from the uploaded PDFs.")
+                    return
+
                 st.write(data_frame.head())
-                data_frame["AMOUNT"] = data_frame["AMOUNT"].astype(float)
+
+                # Ensure AMOUNT is float for calculation
+                data_frame["AMOUNT"] = pd.to_numeric(data_frame["AMOUNT"], errors='coerce')
                 st.write("Average bill amount: ", data_frame['AMOUNT'].mean())
-                
+
                 # Convert to CSV
-                convert_to_csv = data_frame.to_csv(index=False).encode("utf-8")
-                
+                csv_data = data_frame.to_csv(index=False).encode("utf-8")
+
                 st.download_button(
                     "Download data as CSV",
-                    convert_to_csv,
+                    csv_data,
                     "CSV_Bills.csv",
                     "text/csv",
                     key="download-csv"
                 )
-            st.success("Success!!")
-        else:
-            st.warning("Please upload at least one PDF file.")
 
-# Invoking main function
+                st.success("Extraction successful!")
+            except Exception as e:
+                st.error(f"An error occurred: {e}")
+
 if __name__ == '__main__':
     main()
 
