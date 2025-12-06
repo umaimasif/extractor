@@ -5,6 +5,7 @@ openai
 python-dotenv
 streamlit
 langchain-google-genai
+langchain.prompts
 
 
 
