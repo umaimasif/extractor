@@ -3,10 +3,11 @@ pypdf
 pandas
 python-dotenv
 google-generativeai
-langchain==0.3.7
-langchain-core==0.3.15
-langchain-community==0.3.5
-langgraph==0.1.35
+langchain
+langchain-core
+langchain-community
+langgraph
+
 
 
 
