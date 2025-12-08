@@ -2,9 +2,9 @@ streamlit
 pypdf
 pandas
 python-dotenv
-langchain==1.1.2
-langchain-core==1.1.1
-langchain-community==0.3.1
-langchain-openai==0.2.1
+langchain==0.3.7
+langchain-core==0.3.15
+langchain-community==0.3.5
+langchain-google-genai==0.2.0
 
 
