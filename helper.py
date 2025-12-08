@@ -8,7 +8,7 @@ import os
 from dotenv import load_dotenv, find_dotenv
 
 load_dotenv(find_dotenv())
-google_key = os.getenv("GEMINI_API_KEY")
+google_key = os.getenv("GOOGLE_API_KEY")
 
 genai.configure(api_key=google_key)
 
@@ -64,5 +64,6 @@ def create_docs(user_pdf_list):
             df = pd.concat([df, pd.DataFrame([data_dict])], ignore_index=True)
 
     return df
+
 
 
