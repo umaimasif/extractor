@@ -5,10 +5,6 @@ import os
 from dotenv import load_dotenv, find_dotenv
 import json
 
-# Optional OCR libraries
-from pdf2image import convert_from_bytes
-import pytesseract
-
 # ------------------------------
 # Load Google API key
 # ------------------------------
@@ -20,25 +16,16 @@ genai.configure(api_key=google_key)
 model = genai.GenerativeModel("models/gemini-2.5-flash-lite")
 
 # ------------------------------
-# PDF Text Extraction Functions
+# PDF Text Extraction Function
 # ------------------------------
 def get_pdf_text(pdf_file):
-    """Extract text from a PDF; fallback to OCR if empty."""
-    # First try normal text extraction
+    """Extract text from a PDF file."""
     text = ""
     pdf_reader = PdfReader(pdf_file)
     for page in pdf_reader.pages:
         page_text = page.extract_text()
         if page_text:
             text += page_text + "\n"
-
-    # If no text extracted, use OCR
-    if not text.strip():
-        pdf_file.seek(0)  # reset pointer for OCR
-        pages = convert_from_bytes(pdf_file.read())
-        for page in pages:
-            text += pytesseract.image_to_string(page) + "\n"
-
     return text
 
 # ------------------------------
