@@ -1,18 +1,17 @@
 import google.generativeai as genai
-from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import StrOutputParser
 from pypdf import PdfReader
 import pandas as pd
 import re
 import os
 from dotenv import load_dotenv, find_dotenv
 
+# Load Google API key
 load_dotenv(find_dotenv())
 google_key = os.getenv("GOOGLE_API_KEY")
-
 genai.configure(api_key=google_key)
 
-model = genai.GenerativeModel("gemini-1.5-flash-001")
+# Use a valid model
+model = genai.GenerativeModel("text-bison-001")
 
 def get_pdf_text(pdf_doc):
     text = ""
@@ -20,7 +19,6 @@ def get_pdf_text(pdf_doc):
     for page in pdf_reader.pages:
         text += page.extract_text()
     return text
-
 
 def extracted_data(pages_data):
     prompt = f"""
@@ -40,10 +38,8 @@ def extracted_data(pages_data):
 
     Return ONLY a Python dictionary.
     """
-
     response = model.generate_content(prompt)
     return response.text
-
 
 def create_docs(user_pdf_list):
     df = pd.DataFrame(columns=[
@@ -64,6 +60,5 @@ def create_docs(user_pdf_list):
             df = pd.concat([df, pd.DataFrame([data_dict])], ignore_index=True)
 
     return df
-
 
 
