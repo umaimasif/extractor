@@ -4,8 +4,8 @@ import pandas as pd
 from helper import run_invoice_extraction_graph
 
 def main():
-    st.set_page_config(page_title="Bill Extractor (LangGraph)")
-    st.title("Bill Extractor — LangGraph pipeline 🤖")
+    st.set_page_config(page_title="Bill Extractor")
+    st.title("Bill Extractor 🤖")
 
     pdf_files = st.file_uploader(
         "Upload your bills (PDF only)",
@@ -37,4 +37,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
