@@ -1,108 +1,67 @@
-import os
-import re
-import pandas as pd
-from pypdf import PdfReader
-from dotenv import load_dotenv, find_dotenv
-
-from langchain_google_genai import ChatGoogleGenerativeAI
+import google.generativeai as genai
 from langchain_core.prompts import PromptTemplate
-from langgraph.graph import StateGraph, END
+from langchain_core.output_parsers import StrOutputParser
+from pypdf import PdfReader
+import pandas as pd
+import re
+import os
+from dotenv import load_dotenv, find_dotenv
 
 load_dotenv(find_dotenv())
 google_key = os.getenv("GEMINI_API_KEY")
 
+genai.configure(api_key=google_key)
 
-# -------------------------------
-# PDF TEXT READER
-# -------------------------------
-def get_pdf_text(pdf_file):
-    reader = PdfReader(pdf_file)
+model = genai.GenerativeModel("gemini-1.5-flash")
+
+def get_pdf_text(pdf_doc):
     text = ""
-    for page in reader.pages:
+    pdf_reader = PdfReader(pdf_doc)
+    for page in pdf_reader.pages:
         text += page.extract_text()
     return text
 
 
-# -------------------------------
-# STATE for LangGraph
-# -------------------------------
-class State(dict):
-    text: str
-    response: str
+def extracted_data(pages_data):
+    prompt = f"""
+    Extract the following values clearly from this bill text:
+
+    - Invoice ID
+    - DESCRIPTION
+    - Issue Date
+    - UNIT PRICE
+    - AMOUNT
+    - Bill For
+    - From
+    - Terms
+
+    Text:
+    {pages_data}
+
+    Return ONLY a Python dictionary.
+    """
+
+    response = model.generate_content(prompt)
+    return response.text
 
 
-# -------------------------------
-# NODE 1 — LLM extraction
-# -------------------------------
-def extract_node(state):
-    template = """
-Extract these fields from the bill text:
-- Bill No
-- Account No
-- Billing Date
-- Total Amount Due
-- Customer Name
-- Address
-- Units Consumed
-- Energy Charges
-- Taxes
+def create_docs(user_pdf_list):
+    df = pd.DataFrame(columns=[
+        'Invoice ID', 'DESCRIPTION', 'Issue Date',
+        'UNIT PRICE', 'AMOUNT', 'Bill For', 'From', 'Terms'
+    ])
 
-Bill text:
-{bill_text}
+    for filename in user_pdf_list:
+        raw_data = get_pdf_text(filename)
+        llm_output = extracted_data(raw_data)
 
-Return ONLY JSON like this:
-{
-  "Bill No": "",
-  "Account No": "",
-  "Billing Date": "",
-  "Total Amount Due": "",
-  "Customer Name": "",
-  "Address": "",
-  "Units Consumed": "",
-  "Energy Charges": "",
-  "Taxes": ""
-}
-"""
-    prompt = PromptTemplate(
-        input_variables=["bill_text"],
-        template=template
-    )
+        pattern = r'{(.+)}'
+        match = re.search(pattern, llm_output, re.DOTALL)
 
-    llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0)
-
-    result = llm.invoke(prompt.format(bill_text=state["text"]))
-
-    state["response"] = result
-    return state
-
-
-# -------------------------------
-# BUILD LANGGRAPH
-# -------------------------------
-graph = StateGraph(State)
-graph.add_node("extract", extract_node)
-graph.set_entry_point("extract")
-graph.set_finish_point("extract")
-
-workflow = graph.compile()
-
-
-# -------------------------------
-# MAIN FUNCTION CALLED BY STREAMLIT
-# -------------------------------
-def create_docs(pdf_files):
-    df = pd.DataFrame()
-
-    for file in pdf_files:
-        text = get_pdf_text(file)
-        output = workflow.invoke({"text": text})
-
-        try:
-            clean_json = re.search(r"{(.+?)}", output["response"], re.S).group(0)
-            data_dict = eval(clean_json)
+        if match:
+            extracted_text = match.group(1)
+            data_dict = eval('{' + extracted_text + '}')
             df = pd.concat([df, pd.DataFrame([data_dict])], ignore_index=True)
-        except:
-            pass
 
     return df
 
