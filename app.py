@@ -1,41 +1,32 @@
-# app.py
 import streamlit as st
 import pandas as pd
-from helper import run_invoice_extraction_graph
+from helper import create_docs
 
 def main():
-    st.set_page_config(page_title="Bill Extractor")
-    st.title("Bill Extractor 🤖")
+    st.title("AI Bill Extractor")
 
-    pdf_files = st.file_uploader(
-        "Upload your bills (PDF only)",
-        type=["pdf"],
-        accept_multiple_files=True
-    )
+    pdfs = st.file_uploader("Upload Bills", type=["pdf"], accept_multiple_files=True)
 
-    model_name = st.text_input("LLM model name (optional)", value="gemini-pro")
-    if st.button("Extract bill data"):
-        if not pdf_files:
-            st.warning("Please upload at least one PDF.")
+    if st.button("Extract"):
+        if not pdfs:
+            st.warning("Upload at least one file.")
             return
+        
+        with st.spinner("Extracting..."):
+            df = create_docs(pdfs)
 
-        with st.spinner("Running LangGraph pipeline..."):
-            df = run_invoice_extraction_graph(pdf_files, model=model_name)
+        if df.empty:
+            st.error("No data extracted. Check bill format.")
+        else:
+            st.success("Done!")
+            st.dataframe(df)
 
-        if df is None or df.empty:
-            st.error("No structured data could be extracted.")
-            return
-
-        st.dataframe(df)
-        # safe numeric conversion
-        df["AMOUNT"] = pd.to_numeric(df["AMOUNT"], errors="coerce")
-        st.write("Average amount:", df["AMOUNT"].mean())
-
-        csv = df.to_csv(index=False).encode("utf-8")
-        st.download_button("Download CSV", csv, "extracted_bills.csv", "text/csv")
-        st.success("Done.")
+            st.download_button(
+                "Download CSV",
+                df.to_csv(index=False).encode("utf-8"),
+                "extracted_bills.csv",
+                "text/csv"
+            )
 
 if __name__ == "__main__":
     main()
-
-
