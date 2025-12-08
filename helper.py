@@ -1,10 +1,9 @@
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain.chains import LLMChain
 from pypdf import PdfReader
 import pandas as pd
-import re
+import json
 import os
 from dotenv import find_dotenv, load_dotenv
 
@@ -13,6 +12,7 @@ google_key = os.getenv("GEMINI_API_KEY")
 
 
 def get_pdf_text(pdf_doc):
+    """Extract text from each PDF page."""
     text = ""
     pdf_reader = PdfReader(pdf_doc)
     for page in pdf_reader.pages:
@@ -21,15 +21,37 @@ def get_pdf_text(pdf_doc):
 
 
 def extracted_data(pages_data):
-    template = """Extract all the following values : Invoice ID, DESCRIPTION, Issue Date, 
-         UNIT PRICE, AMOUNT, Bill For, From and Terms from: {pages}
+    """LLM extraction using modern LangChain pipeline."""
+    template = """
+    Extract the following fields from this invoice text:
+    Invoice ID, DESCRIPTION, Issue Date, UNIT PRICE, AMOUNT, Bill For, From, Terms.
 
-        Expected output: remove any dollar symbols {{'Invoice ID': '1001329','DESCRIPTION': 'UNIT PRICE','AMOUNT': '2','Date': '5/4/2023','AMOUNT': '1100.00', 'Bill For': 'james', 'From': 'excel company', 'Terms': 'pay this now'}}
-        """
-    prompt_template = PromptTemplate(input_variables=["pages"], template=template)
-    llm = ChatGoogleGenerativeAI(temperature=0.7)
-    full_response = llm(prompt_template.format(pages=pages_data))
-    return full_response
+    Text:
+    {pages}
+
+    Output pure JSON only. Example:
+    {{
+        "Invoice ID": "1001329",
+        "DESCRIPTION": "Some item",
+        "Issue Date": "5/4/2023",
+        "UNIT PRICE": "2",
+        "AMOUNT": "1100.00",
+        "Bill For": "James",
+        "From": "Excel Company",
+        "Terms": "Pay this now"
+    }}
+    """
+
+    prompt = PromptTemplate(
+        input_variables=["pages"],
+        template=template
+    )
+
+    model = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
+
+    chain = prompt | model | StrOutputParser()
+
+    return chain.invoke({"pages": pages_data})
 
 
 def create_docs(user_pdf_list):
@@ -38,17 +60,14 @@ def create_docs(user_pdf_list):
         'UNIT PRICE', 'AMOUNT', 'Bill For', 'From', 'Terms'
     ])
 
-    for filename in user_pdf_list:
-        raw_data = get_pdf_text(filename)
-        llm_extracted_data = extracted_data(raw_data)
+    for file in user_pdf_list:
+        raw_text = get_pdf_text(file)
+        response = extracted_data(raw_text)
 
-        pattern = r'{(.+)}'
-        match = re.search(pattern, llm_extracted_data, re.DOTALL)
-        if match:
-            extracted_text = match.group(1)
-            data_dict = eval('{' + extracted_text + '}')
-            df = pd.concat([df, pd.DataFrame([data_dict])], ignore_index=True)
+        try:
+            cleaned = json.loads(response)
+            df = pd.concat([df, pd.DataFrame([cleaned])], ignore_index=True)
+        except:
+            pass
 
     return df
-
-
