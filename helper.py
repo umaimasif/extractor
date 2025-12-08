@@ -11,7 +11,7 @@ google_key = os.getenv("GOOGLE_API_KEY")
 genai.configure(api_key=google_key)
 
 # Use a valid model
-model = genai.GenerativeModel("gemini-1.5-flash")
+model = genai.GenerativeModel("gemini-pro")
 
 def get_pdf_text(pdf_doc):
     text = ""
@@ -60,6 +60,7 @@ def create_docs(user_pdf_list):
             df = pd.concat([df, pd.DataFrame([data_dict])], ignore_index=True)
 
     return df
+
 
 
 
