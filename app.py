@@ -5,6 +5,7 @@ from helper import create_docs
 def main():
     st.title("AI Bill Extractor")
 
+    # Upload multiple PDFs
     pdfs = st.file_uploader("Upload Bills", type=["pdf"], accept_multiple_files=True)
 
     if st.button("Extract"):
@@ -13,6 +14,7 @@ def main():
             return
         
         with st.spinner("Extracting..."):
+            # Pass the uploaded files directly
             df = create_docs(pdfs)
 
         if df.empty:
@@ -21,6 +23,7 @@ def main():
             st.success("Done!")
             st.dataframe(df)
 
+            # Download CSV
             st.download_button(
                 "Download CSV",
                 df.to_csv(index=False).encode("utf-8"),
