@@ -68,7 +68,7 @@ Return ONLY JSON like this:
         template=template
     )
 
-    llm = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
+    llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0)
 
     result = llm.invoke(prompt.format(bill_text=state["text"]))
 
@@ -105,3 +105,4 @@ def create_docs(pdf_files):
             pass
 
     return df
+
