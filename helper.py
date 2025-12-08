@@ -49,32 +49,27 @@ Text:
 {pages_data}
 
 Return ONLY a valid JSON object.
-Rules:
-1. All keys must be present exactly as listed.
-2. Use double quotes for strings.
-3. No extra text outside the JSON.
-4. If a value is missing, use null.
-
-Example output:
-{{
-  "Invoice ID": "12345",
-  "DESCRIPTION": "Product X",
-  "Issue Date": "2025-12-09",
-  "UNIT PRICE": 100.0,
-  "AMOUNT": 300.0,
-  "Bill For": "Customer",
-  "From": "Company",
-  "Terms": "Net 30"
-}}
+Use double quotes, all keys must appear even if value is missing (use null).
+Do not include any text outside the JSON.
 """
     response = model.generate_content(prompt)
-    return response.text
+    output_text = response.text.strip()
 
+    # Sometimes the model returns extra text around JSON, try to extract JSON only
+    try:
+        # Find first { and last }
+        start = output_text.find("{")
+        end = output_text.rfind("}") + 1
+        json_text = output_text[start:end]
+        data_dict = json.loads(json_text)
+    except Exception:
+        data_dict = {}  # fallback if JSON invalid
+
+    return data_dict
 # ------------------------------
 # Main function to handle multiple PDFs
 # ------------------------------
 def create_docs(user_pdf_list):
-    """Process multiple PDFs and return a dataframe of extracted data."""
     df = pd.DataFrame(columns=[
         'Invoice ID', 'DESCRIPTION', 'Issue Date',
         'UNIT PRICE', 'AMOUNT', 'Bill For', 'From', 'Terms'
@@ -88,21 +83,16 @@ def create_docs(user_pdf_list):
                 failed_files.append(pdf_file.name)
                 continue
 
-            llm_output = extracted_data(raw_text)
-
-            # Safely parse JSON
-            try:
-                data_dict = json.loads(llm_output)
-            except json.JSONDecodeError:
-                failed_files.append(pdf_file.name)
-                continue
-
+            data_dict = extracted_data(raw_text)
             if data_dict:
                 df = pd.concat([df, pd.DataFrame([data_dict])], ignore_index=True)
+            else:
+                failed_files.append(pdf_file.name)
 
         except Exception:
             failed_files.append(pdf_file.name)
 
     return df, failed_files
+
 
 
