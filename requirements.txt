@@ -1,12 +1,13 @@
-streamlit==1.29.0
-pypdf==3.21.0
-pandas==2.1.0
-python-dotenv==1.0.1
-google-generativeai==0.7.2
-langchain==0.1.216
-langchain-core==0.0.18
-langchain-community==0.0.16
-langgraph==0.0.5
+streamlit
+pypdf
+pandas
+python-dotenv
+google-generativeai
+langchain
+langchain-core
+langchain-community
+langgraph
+
 
 
 
