@@ -7,8 +7,9 @@ langchain==0.1.216
 langchain-core==0.0.18
 langchain-community==0.0.16
 langgraph==0.0.5
-pdf2image==1.17.1
-pytesseract==0.3.10
+
+
+
 
 
 
