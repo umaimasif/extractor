@@ -5,7 +5,13 @@ import os
 from dotenv import load_dotenv, find_dotenv
 import json
 
+# Optional OCR libraries
+from pdf2image import convert_from_bytes
+import pytesseract
+
+# ------------------------------
 # Load Google API key
+# ------------------------------
 load_dotenv(find_dotenv())
 google_key = os.getenv("GOOGLE_API_KEY")
 genai.configure(api_key=google_key)
@@ -13,16 +19,31 @@ genai.configure(api_key=google_key)
 # Use a valid model
 model = genai.GenerativeModel("models/gemini-2.5-flash-lite")
 
-def get_pdf_text(pdf_doc):
-    """Extract text from a PDF file."""
+# ------------------------------
+# PDF Text Extraction Functions
+# ------------------------------
+def get_pdf_text(pdf_file):
+    """Extract text from a PDF; fallback to OCR if empty."""
+    # First try normal text extraction
     text = ""
-    pdf_reader = PdfReader(pdf_doc)
+    pdf_reader = PdfReader(pdf_file)
     for page in pdf_reader.pages:
         page_text = page.extract_text()
         if page_text:
             text += page_text + "\n"
+
+    # If no text extracted, use OCR
+    if not text.strip():
+        pdf_file.seek(0)  # reset pointer for OCR
+        pages = convert_from_bytes(pdf_file.read())
+        for page in pages:
+            text += pytesseract.image_to_string(page) + "\n"
+
     return text
 
+# ------------------------------
+# LLM Extraction Function
+# ------------------------------
 def extracted_data(pages_data):
     """Send text to the model and get a JSON-formatted dictionary."""
     prompt = f"""
@@ -62,30 +83,39 @@ Example output:
     response = model.generate_content(prompt)
     return response.text
 
+# ------------------------------
+# Main function to handle multiple PDFs
+# ------------------------------
 def create_docs(user_pdf_list):
     """Process multiple PDFs and return a dataframe of extracted data."""
     df = pd.DataFrame(columns=[
         'Invoice ID', 'DESCRIPTION', 'Issue Date',
         'UNIT PRICE', 'AMOUNT', 'Bill For', 'From', 'Terms'
     ])
+    failed_files = []
 
     for pdf_file in user_pdf_list:
-        raw_data = get_pdf_text(pdf_file)
-        if not raw_data.strip():
-            continue  # Skip empty PDFs
-
-        llm_output = extracted_data(raw_data)
-
-        # Debug: uncomment to see raw model output
-        # print("LLM output:", llm_output)
-
-        # Safely parse JSON
         try:
-            data_dict = json.loads(llm_output)
-        except json.JSONDecodeError:
-            data_dict = {}  # skip this PDF if output is invalid
+            raw_text = get_pdf_text(pdf_file)
+            if not raw_text.strip():
+                failed_files.append(pdf_file.name)
+                continue
 
-        if data_dict:
-            df = pd.concat([df, pd.DataFrame([data_dict])], ignore_index=True)
+            llm_output = extracted_data(raw_text)
 
-    return df
+            # Safely parse JSON
+            try:
+                data_dict = json.loads(llm_output)
+            except json.JSONDecodeError:
+                failed_files.append(pdf_file.name)
+                continue
+
+            if data_dict:
+                df = pd.concat([df, pd.DataFrame([data_dict])], ignore_index=True)
+
+        except Exception:
+            failed_files.append(pdf_file.name)
+
+    return df, failed_files
+
+
