@@ -1,9 +1,9 @@
 import google.generativeai as genai
 from pypdf import PdfReader
 import pandas as pd
-import re
 import os
 from dotenv import load_dotenv, find_dotenv
+import json
 
 # Load Google API key
 load_dotenv(find_dotenv())
@@ -14,6 +14,7 @@ genai.configure(api_key=google_key)
 model = genai.GenerativeModel("models/gemini-2.5-flash-lite")
 
 def get_pdf_text(pdf_doc):
+    """Extract text from a PDF file."""
     text = ""
     pdf_reader = PdfReader(pdf_doc)
     for page in pdf_reader.pages:
@@ -21,6 +22,7 @@ def get_pdf_text(pdf_doc):
     return text
 
 def extracted_data(pages_data):
+    """Send text to the model and get a JSON-formatted dictionary."""
     prompt = f"""
     Extract the following values clearly from this bill text:
 
@@ -36,32 +38,30 @@ def extracted_data(pages_data):
     Text:
     {pages_data}
 
-    Return ONLY a Python dictionary.
+    Return ONLY a valid JSON object.
     """
     response = model.generate_content(prompt)
     return response.text
 
 def create_docs(user_pdf_list):
+    """Process multiple PDFs and return a dataframe of extracted data."""
     df = pd.DataFrame(columns=[
         'Invoice ID', 'DESCRIPTION', 'Issue Date',
         'UNIT PRICE', 'AMOUNT', 'Bill For', 'From', 'Terms'
     ])
 
-    for filename in user_pdf_list:
-        raw_data = get_pdf_text(filename)
+    for pdf_file in user_pdf_list:
+        raw_data = get_pdf_text(pdf_file)
         llm_output = extracted_data(raw_data)
 
-        pattern = r'{(.+)}'
-        match = re.search(pattern, llm_output, re.DOTALL)
+        # Parse JSON safely
+        try:
+            data_dict = json.loads(llm_output)
+        except json.JSONDecodeError:
+            data_dict = {}  # skip or handle error if model output is invalid
 
-        if match:
-            extracted_text = match.group(1)
-            data_dict = eval('{' + extracted_text + '}')
+        # Add to dataframe if dictionary is not empty
+        if data_dict:
             df = pd.concat([df, pd.DataFrame([data_dict])], ignore_index=True)
 
     return df
-
-
-
-
-
